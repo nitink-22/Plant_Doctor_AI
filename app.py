@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-from rembg import remove
+from rembg import remove, new_session
 import numpy as np
 import cv2
 
@@ -247,10 +247,12 @@ if image_file is not None:
         st.markdown("**1. Original Capture**")
         st.image(raw_image, use_container_width=True)
         
-    if enable_bg_removal:
+   if enable_bg_removal:
         with st.spinner("Isolating leaf (Using Alpha Matting)..."):
+            my_session = new_session("u2netp")
             bg_removed = remove(
                 raw_image, 
+                session=my_session,
                 alpha_matting=True, 
                 alpha_matting_foreground_threshold=240, 
                 alpha_matting_background_threshold=10, 
@@ -261,7 +263,7 @@ if image_file is not None:
             
         with col2:
             st.markdown("**2. Isolated Matrix**")
-            st.image(processed_image, use_container_width=True)
+            st.image(processed_image, width="stretch")
     else:
         processed_image = raw_image
         with col2:

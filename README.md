@@ -5,9 +5,10 @@ Production-ready AI system with automated background removal and Grad-CAM visual
 Plant Doctor AI is an enterprise-grade Streamlit application designed for rapid, field-level botanical diagnostics. Powered by a custom-trained ResNet-50 Convolutional Neural Network, the system can accurately identify 38 distinct plant pathogens and healthy states across 14 different crop species.
 
 ## Live Demo
-[Launch Plant Doctor AI Web App]
- https://nitink-22-agrivision-doc-app-2bozjv.streamlit.app/
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nitink-22-agrivision-doc-app-2bozjv.streamlit.app/)
+
+[Launch Plant Doctor AI Web App](https://nitink-22-agrivision-doc-app-2bozjv.streamlit.app/)
 
 ---
 
@@ -86,44 +87,52 @@ Apple | Blueberry | Cherry | Corn | Grape | Orange | Peach | Pepper (Bell) | Pot
 
 If you wish to run Plant Doctor AI locally on your own machine, follow these steps:
 
-1. Clone the repository
-git clone https://github.com/nitink-22/AgriVision-Doc.git
-cd AgriVision-Doc
+### 1. Clone the repository
+```bash
+git clone https://github.com/nitink-22/Plant_Doctor_AI.git
+cd Plant_Doctor_AI
+```
 
-2. Create and activate a virtual environment
+### 2. Create and activate a virtual environment
 
-Windows:
+**Windows:**
+```powershell
 python -m venv env
 .\env\Scripts\activate
+```
 
-Mac/Linux:
+**Mac/Linux:**
+```bash
 python3 -m venv env
 source env/bin/activate
+```
 
-3. Install dependencies
+### 3. Install dependencies
+```bash
 pip install -r requirements.txt
+```
 
-4. Add the Model Weights
-Ensure your trained weights file (enterprise_plant_model.pth) is placed directly in the root directory of the project.
+### 4. Add the Model Weights
+Ensure your trained weights file (`enterprise_plant_model.pth`) is placed directly in the root directory of the project.
 
-5. Launch the Application
+### 5. Launch the Application
+```bash
 streamlit run app.py
+```
 
 ---
 
 ## Project Structure
 
-Plant-Doctor-AI/
-
+```text
+Plant_Doctor_AI/
 ├── app.py
-
-├── requirements.txt 
-
-├── .gitignore
-
+├── code_file.ipynb
 ├── enterprise_plant_model.pth
-
-└── README.md                      
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
 ---
 ## Technology Stack
