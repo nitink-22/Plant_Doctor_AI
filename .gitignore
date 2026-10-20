@@ -1,0 +1,8 @@
+env/
+env2/
+venv/
+*.pth
+*.h5
+*.onnx
+*.pkl
+__pycache__/
