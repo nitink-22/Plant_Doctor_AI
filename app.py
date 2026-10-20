@@ -247,7 +247,7 @@ if image_file is not None:
         st.markdown("**1. Original Capture**")
         st.image(raw_image, use_container_width=True)
         
-   if enable_bg_removal:
+    if enable_bg_removal:
         with st.spinner("Isolating leaf (Using Alpha Matting)..."):
             my_session = new_session("u2netp")
             bg_removed = remove(
