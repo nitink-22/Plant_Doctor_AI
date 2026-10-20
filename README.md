@@ -6,9 +6,9 @@ Plant Doctor AI is an enterprise-grade Streamlit application designed for rapid,
 
 ## Live Demo
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nitink-22-agrivision-doc-app-2bozjv.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://nitink-22-plant-doctor-ai-app-brvouq.streamlit.app/)
 
-[Launch Plant Doctor AI Web App](https://nitink-22-agrivision-doc-app-2bozjv.streamlit.app/)
+[Launch Plant Doctor AI Web App](https://nitink-22-plant-doctor-ai-app-brvouq.streamlit.app/)
 
 ---
 
