@@ -170,7 +170,7 @@ cam_engine = GradCAM(model, model.layer4[-1])
 
 @st.cache_resource
 def load_rembg_session():
-    return new_session("u2net") # Full model with superior leaf edge detection
+    return new_session("u2netp") # Lightweight model to avoid OOM crashes
 
 my_session = load_rembg_session()
 
