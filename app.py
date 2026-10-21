@@ -148,32 +148,36 @@ class GradCAM:
         return cam
 
 # -------------------------------------------------------------------------
-# 4. MODEL CONFIGURATION & LOADING
+# 4. MODEL CONFIGURATION & LOADING (MobileNetV2)
 # -------------------------------------------------------------------------
 @st.cache_resource
 def load_agtech_model():
-    model = models.resnet50(weights=None) 
-    num_features = model.fc.in_features
-    model.fc = nn.Linear(num_features, 38)
+    # 1. Initialize MobileNetV2 architecture
+    model = models.mobilenet_v2(weights=None) 
+    model.classifier[1] = nn.Linear(model.last_channel, 38)
     
     try:
-        model.load_state_dict(torch.load("enterprise_plant_model.pth", map_location=torch.device('cpu')))
+        model.load_state_dict(torch.load("mobilenet_v2_baseline.pth", map_location=torch.device('cpu')))
     except FileNotFoundError:
-        st.error("Error: 'enterprise_plant_model.pth' not found. Please place it in the same folder as app.py.")
+        st.error("Error: 'mobilenet_v2_baseline.pth' not found. Please upload it to your repo folder.")
         st.stop()
         
     model.eval()
     return model
 
 model = load_agtech_model()
-cam_engine = GradCAM(model, model.layer4[-1])
 
+# 2. TARGET LAYER FIX: MobileNetV2 uses model.features[-1] for Grad-CAM
+cam_engine = GradCAM(model, model.features[-1])
+
+# 3. Cache background removal session
 @st.cache_resource
 def load_rembg_session():
-    return new_session("u2netp") # Lightweight model to avoid OOM crashes
+    return new_session("u2netp")
 
 my_session = load_rembg_session()
 
+# 4. Transforms remain identical (ImageNet normalization)
 input_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
