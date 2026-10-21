@@ -170,7 +170,7 @@ cam_engine = GradCAM(model, model.layer4[-1])
 
 @st.cache_resource
 def load_rembg_session():
-    return new_session("u2netp")
+    return new_session("u2net") # Full model with superior leaf edge detection
 
 my_session = load_rembg_session()
 
@@ -198,7 +198,7 @@ st.sidebar.markdown("### Image Source")
 input_mode = st.sidebar.radio("Select how to provide the leaf image:", ["Upload Local Image", "Use Live Device Camera"], label_visibility="collapsed")
 
 st.sidebar.markdown("### Processing Options")
-enable_bg_removal = st.sidebar.checkbox("Auto-Isolate Leaf (Alpha Matting)", value=True, help="Automatically removes the background to help the AI focus solely on the leaf structure.")
+enable_bg_removal = st.sidebar.checkbox("Auto-Isolate Leaf", value=True, help="Automatically removes the background to help the AI focus solely on the leaf structure.")
 
 st.sidebar.markdown("---")
 
@@ -254,16 +254,11 @@ if image_file is not None:
         st.image(raw_image, use_container_width=True)
         
     if enable_bg_removal:
-        with st.spinner("Isolating leaf (Using Alpha Matting)..."):
+        with st.spinner("Isolating leaf..."):
             my_session = new_session("u2netp")
-            bg_removed = remove(
-                raw_image, 
-                session=my_session,
-                alpha_matting=True, 
-                alpha_matting_foreground_threshold=240, 
-                alpha_matting_background_threshold=10, 
-                alpha_matting_erode_size=10
-            )
+            # NEW CODE (Preserves leaf structure):
+            bg_removed = remove(raw_image, session=my_session)
+            
             processed_image = Image.new("RGB", bg_removed.size, (255, 255, 255))
             processed_image.paste(bg_removed, mask=bg_removed.split()[3])
             
@@ -295,7 +290,7 @@ if image_file is not None:
         with col3:
             st.markdown("**3. AI Focus (Grad-CAM)**")
             st.image(overlay, use_container_width=True)
-            
+                        
     # -------------------------------------------------------------------------
     # 7. DIAGNOSTIC RESULTS DISPLAY 
     # -------------------------------------------------------------------------
