@@ -1,304 +1,200 @@
-import streamlit as st
+import os
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-from rembg import remove, new_session
-import numpy as np
-import cv2
+import streamlit as st
 
-# -------------------------------------------------------------------------
-# 1. PAGE CONFIG & CUSTOM CSS
-# -------------------------------------------------------------------------
-st.set_page_config(page_title="Plant Doctor AI", layout="wide")
+# -----------------------------------------------------------------------------
+# 1. PAGE CONFIGURATION
+# -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="Plant Doctor AI",
+    page_icon="🌿",
+    layout="wide"
+)
 
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #0E1117;
-    }
-    
-    .block-container {
-        max-width: 1300px !important;
-        background-color: #1A1C23;
-        padding: 3rem 4rem !important;
-        border-radius: 20px;
-        box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.4);
-        margin-top: 3vh;
-        margin-bottom: 3vh;
-    }
-
-    img {
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    
-    .main-title {
-        font-size: 3.5rem !important;
-        font-weight: 800;
-        color: #4CAF50;
-        margin-bottom: 0px;
-        text-align: center;
-        letter-spacing: 1px;
-    }
-    
-    .sub-title {
-        font-size: 1.1rem;
-        color: #A0A0A0;
-        margin-bottom: 40px;
-        text-align: center;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# -------------------------------------------------------------------------
-# 2. CLASS LABELS & SOLUTIONS
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 2. CLASS LABELS (38 Classes - Alphabetical Order Matching PyTorch ImageFolder)
+# -----------------------------------------------------------------------------
 CLASS_NAMES = [
-    "Apple: Scab", "Apple: Black Rot", "Apple: Cedar Rust", "Apple: Healthy",
-    "Blueberry: Healthy",
-    "Cherry: Powdery Mildew", "Cherry: Healthy",
-    "Corn: Gray Leaf Spot", "Corn: Common Rust", "Corn: Northern Leaf Blight", "Corn: Healthy",
-    "Grape: Black Rot", "Grape: Black Measles", "Grape: Leaf Blight", "Grape: Healthy",
-    "Orange: Citrus Greening",
-    "Peach: Bacterial Spot", "Peach: Healthy",
-    "Pepper (Bell): Bacterial Spot", "Pepper (Bell): Healthy",
-    "Potato: Early Blight", "Potato: Late Blight", "Potato: Healthy",
+    "Apple: Scab", 
+    "Apple: Black Rot", 
+    "Apple: Cedar Rust", 
+    "Apple: Healthy",
+    "Blueberry: Healthy", 
+    "Cherry: Powdery Mildew", 
+    "Cherry: Healthy",
+    "Corn: Gray Leaf Spot", 
+    "Corn: Common Rust", 
+    "Corn: Northern Leaf Blight", 
+    "Corn: Healthy",
+    "Grape: Black Rot", 
+    "Grape: Esca (Black Measles)", 
+    "Grape: Leaf Blight", 
+    "Grape: Healthy",
+    "Orange: Citrus Greening (Haunglongbing)",
+    "Peach: Bacterial Spot", 
+    "Peach: Healthy",
+    "Pepper (Bell): Bacterial Spot", 
+    "Pepper (Bell): Healthy",
+    "Potato: Early Blight", 
+    "Potato: Late Blight", 
+    "Potato: Healthy",
     "Raspberry: Healthy",
     "Soybean: Healthy",
     "Squash: Powdery Mildew",
-    "Strawberry: Leaf Scorch", "Strawberry: Healthy",
-    "Tomato: Bacterial Spot", "Tomato: Early Blight", "Tomato: Late Blight",
-    "Tomato: Leaf Mold", "Tomato: Septoria Leaf Spot", "Tomato: Spider Mites",
-    "Tomato: Target Spot", "Tomato: Yellow Leaf Curl Virus", "Tomato: Mosaic Virus", "Tomato: Healthy"
+    "Strawberry: Leaf Scorch", 
+    "Strawberry: Healthy",
+    "Tomato: Bacterial Spot", 
+    "Tomato: Early Blight", 
+    "Tomato: Late Blight", 
+    "Tomato: Leaf Mold", 
+    "Tomato: Septoria Leaf Spot", 
+    "Tomato: Spider Mites", 
+    "Tomato: Target Spot", 
+    "Tomato: Yellow Leaf Curl Virus", 
+    "Tomato: Mosaic Virus", 
+    "Tomato: Healthy"
 ]
 
 DISEASE_SOLUTIONS = {
-    "Scab": "Apply fungicides like Captan or Mancozeb. Rake and destroy fallen leaves.",
-    "Black Rot": "Prune out dead or diseased wood. Apply a copper-based fungicide before buds open.",
-    "Cedar Rust": "Remove nearby cedar hosts if possible. Apply preventative fungicides containing myclobutanil.",
-    "Powdery Mildew": "Increase air circulation through pruning. Apply sulfur or potassium bicarbonate sprays.",
-    "Gray Leaf Spot": "Use crop rotation. Apply foliar fungicides like strobilurins if symptoms are severe.",
-    "Common Rust": "Plant rust-resistant varieties next season. Apply fungicide early if rust pustules cover leaves.",
-    "Northern Leaf Blight": "Rotate crops away from corn for 1-2 years. Fungicide is rarely economical unless very wet.",
-    "Black Measles": "Also known as Esca. Prune out infected wood. No chemical cure exists; focus on vine health.",
-    "Leaf Blight": "Ensure proper drainage and avoid overhead watering. Copper fungicides can slow the spread.",
-    "Citrus Greening": "Incurable bacterial disease spread by psyllids. Remove and destroy infected trees immediately.",
-    "Bacterial Spot": "Apply copper-based bactericides early in the season. Avoid overhead irrigation.",
-    "Early Blight": "Apply chlorothalonil or copper fungicides. Practice a 3-year crop rotation.",
-    "Late Blight": "Aggressive and highly contagious. Apply fungicides immediately. Destroy infected plants.",
-    "Leaf Scorch": "Avoid overhead watering. Remove infected foliage and ensure proper plant spacing.",
-    "Leaf Mold": "Reduce greenhouse humidity. Improve ventilation and apply appropriate fungicides if severe.",
-    "Septoria Leaf Spot": "Mulch soil to prevent splashing. Water at the base. Apply fungicidal sprays if spotted early.",
-    "Spider Mites": "Spray leaves with water to dislodge mites. Introduce predatory mites or use horticultural oils (Neem).",
-    "Target Spot": "Apply broad-spectrum fungicides. Ensure crops have adequate airflow.",
-    "Yellow Leaf Curl Virus": "Spread by whiteflies. Use reflective mulches and insecticidal soaps. Destroy infected plants.",
-    "Mosaic Virus": "No cure. Highly contagious via touch or tools. Uproot and burn infected plants immediately. Wash hands and tools."
+    "Scab": "Apply copper-based fungicides or Captan/Mancozeb. Rake and destroy fallen infected leaves to prevent overwintering spores.",
+    "Black Rot": "Prune out dead or diseased wood during dormancy. Apply copper-based fungicide before buds open.",
+    "Cedar Rust": "Remove nearby galls on cedar trees if possible. Apply protective fungicides like Myclobutanil during bloom.",
+    "Powdery Mildew": "Apply sulfur-based fungicides or neem oil. Ensure adequate sunlight and adequate air spacing between leaves.",
+    "Gray Leaf Spot": "Use resistant hybrids, practice crop rotation with non-host crops, and apply triazole/strobilurin fungicides if severe.",
+    "Common Rust": "Plant resistant crop varieties. Apply recommended foliar fungicides if infection starts early in the season.",
+    "Northern Leaf Blight": "Rotate crops, plow under crop residue, and utilize resistant crop hybrids or approved fungicides.",
+    "Esca (Black Measles)": "Remove infected branches down to healthy wood. Protect pruning wounds with wound sealants.",
+    "Leaf Blight": "Apply protective copper fungicides early in the season and maintain good vine canopy management for airflow.",
+    "Citrus Greening": "Control the psyllid insect vector using insecticides, remove infected trees immediately to stop spread, and apply balanced nutrition.",
+    "Bacterial Spot": "Use disease-free seeds and copper-mancozeb sprays. Avoid overhead irrigation to minimize leaf wetness.",
+    "Early Blight": "Apply copper or chlorothalonil fungicides. Mulch around plant base to prevent soil splash and rotate crops annually.",
+    "Late Blight": "Apply protective fungicides (Chlorothalonil/Mancozeb) immediately. Destroy severely infected plants to prevent airborne spread.",
+    "Leaf Mold": "Improve greenhouse/field ventilation to reduce humidity. Apply fungicides containing copper or chlorothalonil.",
+    "Septoria Leaf Spot": "Remove infected lower leaves promptly. Apply fungicides and practice strict crop rotation.",
+    "Spider Mites": "Spray leaves with water jets, insecticidal soap, or neem oil. Maintain good hydration to reduce mite pressure.",
+    "Target Spot": "Maintain crop hygiene, lower moisture around leaves, and apply appropriate protective fungicides.",
+    "Yellow Leaf Curl Virus": "Control whitefly populations using insecticidal soap, yellow sticky traps, and physical insect nets.",
+    "Mosaic Virus": "No chemical cure. Remove and destroy infected plants immediately; sanitize hands and tools to prevent mechanical spread.",
+    "Leaf Scorch": "Avoid overhead watering, remove diseased leaves in late summer, and ensure proper soil drainage.",
+    "Healthy": "Plant is healthy! Maintain regular watering, optimal sunlight, and routine nutrient management."
 }
 
-# -------------------------------------------------------------------------
-# 3. GRAD-CAM ENGINE
-# -------------------------------------------------------------------------
-class GradCAM:
-    def __init__(self, model, target_layer):
-        self.model = model
-        self.target_layer = target_layer
-        self.gradients = None
-        self.activations = None
-        
-        self.target_layer.register_forward_hook(self.save_activation)
-        self.target_layer.register_full_backward_hook(self.save_gradient)
+# -----------------------------------------------------------------------------
+# 3. MODEL LOADING (CACHED)
+# -----------------------------------------------------------------------------
+MODEL_PATH = "mobilenet_v2_baseline.pth"
 
-    def save_activation(self, module, input, output):
-        self.activations = output
-
-    def save_gradient(self, module, grad_input, grad_output):
-        self.gradients = grad_output[0]
-
-    def generate_heatmap(self, input_tensor, class_idx):
-        self.model.zero_grad()
-        output = self.model(input_tensor)
-        target = output[0, class_idx]
-        target.backward()
-
-        if self.gradients is None or self.activations is None:
-            return np.zeros((224, 224), dtype=np.float32)
-
-        gradients = self.gradients.cpu().data.numpy()[0]
-        activations = self.activations.cpu().data.numpy()[0]
-        weights = np.mean(gradients, axis=(1, 2))
-        
-        cam = np.zeros(activations.shape[1:], dtype=np.float32)
-        for i, w in enumerate(weights):
-            cam += w * activations[i]
-
-        cam = np.maximum(cam, 0)
-        cam = cv2.resize(cam, (224, 224))
-        cam = cam - np.min(cam)
-        if np.max(cam) != 0:
-            cam = cam / np.max(cam)
-        return cam
-
-# -------------------------------------------------------------------------
-# 4. MODEL CONFIGURATION & LOADING
-# -------------------------------------------------------------------------
 @st.cache_resource
-def load_agtech_model():
-    try:
-        # Try loading MobileNetV2 baseline
-        model = models.mobilenet_v2(weights=None)
-        model.classifier[1] = nn.Linear(model.last_channel, 38)
-        model.load_state_dict(torch.load("mobilenet_v2_baseline.pth", map_location=torch.device('cpu')))
-        model.eval()
-        return model, "mobilenet"
-    except FileNotFoundError:
-        try:
-            # Fallback to ResNet50 if MobileNetV2 file is missing
-            model = models.resnet50(weights=None)
-            num_features = model.fc.in_features
-            model.fc = nn.Linear(num_features, 38)
-            model.load_state_dict(torch.load("enterprise_plant_model.pth", map_location=torch.device('cpu')))
-            model.eval()
-            return model, "resnet"
-        except FileNotFoundError:
-            st.error("Error: Neither 'mobilenet_v2_baseline.pth' nor 'enterprise_plant_model.pth' was found. Please upload a valid .pth file.")
-            st.stop()
-
-model, arch_type = load_agtech_model()
-
-# Target layer for Grad-CAM depending on architecture
-if arch_type == "mobilenet":
-    cam_engine = GradCAM(model, model.features[-1])
-else:
-    cam_engine = GradCAM(model, model.layer4[-1])
-
-# Cache lightweight background removal session
-@st.cache_resource
-def load_rembg_session():
-    return new_session("u2netp")
-
-my_session = load_rembg_session()
-
-input_transforms = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-# -------------------------------------------------------------------------
-# 5. STREAMLIT INTERFACE UI & SIDEBAR
-# -------------------------------------------------------------------------
-st.markdown('<p class="main-title">Plant Doctor AI</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Production-ready AI system with automated background isolation and Grad-CAM diagnostics.</p>', unsafe_allow_html=True)
-st.markdown("---")
-
-st.sidebar.markdown("## Control Panel")
-input_mode = st.sidebar.radio("Select image source:", ["Upload Local Image", "Use Live Device Camera"])
-
-enable_bg_removal = st.sidebar.checkbox(
-    "Auto-Isolate Leaf", 
-    value=False, 
-    help="Automatically isolates the leaf. Leave unchecked if background removal erases green foliage."
-)
-
-st.sidebar.markdown("---")
-
-image_file = None
-if input_mode == "Upload Local Image":
-    image_file = st.sidebar.file_uploader("Drop a leaf photo here...", type=["jpg", "jpeg", "png"])
-else:
-    image_file = st.sidebar.camera_input("Position leaf clearly in front of device camera")
-
-st.sidebar.markdown("---")
-st.sidebar.success(f"**Status:** Online\n\n**Engine:** {arch_type.upper()}\n\n**Classes:** 38 Pathogen Profiles")
-
-# -------------------------------------------------------------------------
-# 6. PROCESSING & PREDICTION PIPELINE
-# -------------------------------------------------------------------------
-if image_file is not None:
-    raw_image = Image.open(image_file).convert("RGB")
-    raw_image.thumbnail((800, 800))  # Downscale to protect memory
+def load_model():
+    # Recreate MobileNetV2 architecture with 38 output classes
+    model = models.mobilenet_v2(weights=None)
+    model.classifier[1] = nn.Linear(model.last_channel, len(CLASS_NAMES))
     
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("**1. Original Capture**")
-        st.image(raw_image, width="stretch")
-        
-    if enable_bg_removal:
-        with st.spinner("Isolating leaf..."):
-            bg_removed = remove(raw_image, session=my_session)
-            alpha = bg_removed.split()[3]
-            alpha_np = np.array(alpha)
-            
-            # Fallback if background removal erases the leaf (less than 15% subject detected)
-            if np.mean(alpha_np > 30) < 0.15:
-                st.warning("⚠️ Background removal erased leaf structure. Reverting to original image.")
-                processed_image = raw_image
-            else:
-                processed_image = Image.new("RGB", bg_removed.size, (255, 255, 255))
-                processed_image.paste(bg_removed, mask=alpha)
-            
-        with col2:
-            st.markdown("**2. Isolated Matrix**")
-            st.image(processed_image, width="stretch")
+    # Load model state dict safely on CPU
+    if os.path.exists(MODEL_PATH):
+        state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
+        model.load_state_dict(state_dict)
     else:
-        processed_image = raw_image
-        with col2:
-            st.info("Isolation skipped.")
-
-    with st.spinner("Analyzing botanical structures..."):
-        tensor_img = input_transforms(processed_image).unsqueeze(0)
-        
-        # 1. Inference without gradient tracking (Saves RAM)
-        with torch.no_grad():
-            outputs = model(tensor_img)
-            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
-            confidence, class_idx = torch.max(probabilities, 0)
-        
-        # 2. Grad-CAM generation with gradient tracking enabled
-        with torch.enable_grad():
-            tensor_img_grad = tensor_img.clone().detach().requires_grad_(True)
-            heatmap = cam_engine.generate_heatmap(tensor_img_grad, class_idx.item())
-        
-        orig_width, orig_height = processed_image.size
-        heatmap_resized = cv2.resize(heatmap, (orig_width, orig_height))
-        heatmap_color = cv2.applyColorMap(np.uint8(255 * heatmap_resized), cv2.COLORMAP_JET)
-        heatmap_color = cv2.cvtColor(heatmap_color, cv2.COLOR_BGR2RGB)
-        
-        processed_img_np = np.array(processed_image)
-        overlay = cv2.addWeighted(processed_img_np, 0.5, heatmap_color, 0.5, 0)
-        
-        with col3:
-            st.markdown("**3. AI Focus (Grad-CAM)**")
-            st.image(overlay, width="stretch")
-            
-    # -------------------------------------------------------------------------
-    # 7. DIAGNOSTIC RESULTS DISPLAY
-    # -------------------------------------------------------------------------
-    st.markdown("---")
+        st.error(f"Model file '{MODEL_PATH}' not found in the root directory!")
     
-    detected_condition = CLASS_NAMES[class_idx.item()]
+    # CRITICAL: Set model to evaluation mode (disables dropout/batchnorm randomness)
+    model.eval()
+    return model
+
+# -----------------------------------------------------------------------------
+# 4. PREPROCESSING PIPELINE
+# -----------------------------------------------------------------------------
+def transform_image(image: Image.Image) -> torch.Tensor:
+    # Standard ImageNet normalization matching Colab training transforms
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ])
+    
+    # Convert image to RGB if grayscale or RGBA
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+        
+    return transform(image).unsqueeze(0)  # Shape: (1, 3, 224, 224)
+
+# -----------------------------------------------------------------------------
+# 5. INFERENCE FUNCTION
+# -----------------------------------------------------------------------------
+def predict(model: nn.Module, image_tensor: torch.Tensor):
+    with torch.no_grad():
+        outputs = model(image_tensor)
+        # Apply Softmax to convert raw logits into valid probability percentages
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
+        confidence, predicted_idx = torch.max(probabilities, dim=1)
+        
+    class_name = CLASS_NAMES[predicted_idx.item()]
     confidence_score = confidence.item() * 100
-    
-    metric_col1, metric_col2 = st.columns([2, 1])
-    with metric_col1:
-        st.subheader("Diagnostic Report")
-    with metric_col2:
-        st.metric(label="AI Confidence Level", value=f"{confidence_score:.2f}%")
-    
-    if "Healthy" in detected_condition:
-        st.success(f"**Status:** {detected_condition}")
-        st.write("**Recommendation:** Continue current watering and nutrient schedules. No pathogens detected.")
-    else:
-        st.error(f"**Pathogen Detected:** {detected_condition}")
+    return class_name, confidence_score
+
+# -----------------------------------------------------------------------------
+# 6. STREAMLIT UI LAYOUT
+# -----------------------------------------------------------------------------
+def get_solution(class_name: str) -> str:
+    for key, solution in DISEASE_SOLUTIONS.items():
+        if key.lower() in class_name.lower():
+            return solution
+    return "Ensure optimal soil nutrition, proper irrigation, and consult local agricultural extensions if symptoms persist."
+
+def main():
+    st.title("🌿 AgriVision Doctor")
+    st.markdown("Upload a clear leaf image to diagnose plant crop diseases and receive recommended treatment protocols.")
+
+    # Load model
+    model = load_model()
+
+    # Sidebar info
+    st.sidebar.header("⚙️ App Navigation & Info")
+    st.sidebar.info(
+        "**Architecture:** MobileNetV2\n\n"
+        "**Dataset:** PlantVillage (38 Classes)\n\n"
+        "**Deployment Engine:** PyTorch + Streamlit"
+    )
+
+    # File uploader
+    uploaded_file = st.file_uploader("Upload crop leaf image...", type=["jpg", "jpeg", "png"])
+
+    col1, col2 = st.columns([1, 1])
+
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
         
-        solution_found = False
-        for key, solution in DISEASE_SOLUTIONS.items():
-            if key in detected_condition:
-                st.warning(f"**Recommended Treatment:** {solution}")
-                solution_found = True
-                break
-                
-        if not solution_found:
-            st.warning("**Recommended Treatment:** Isolate the plant. Consult local agricultural extension for specific regional treatments.")
+        with col1:
+            st.image(image, caption="Uploaded Leaf Image", use_column_width=True)
+
+        with col2:
+            st.subheader("🔍 Diagnostic Result")
+            with st.spinner("Analyzing leaf pathology..."):
+                input_tensor = transform_image(image)
+                predicted_class, confidence = predict(model, input_tensor)
+
+            # Display diagnosis tag
+            if "healthy" in predicted_class.lower():
+                st.success(f"**Diagnosis:** {predicted_class}")
+            else:
+                st.warning(f"**Diagnosis:** {predicted_class}")
+
+            # Display confidence metric and progress bar
+            st.metric(label="AI Model Confidence", value=f"{confidence:.2f}%")
+            st.progress(min(int(confidence), 100))
+
+            st.divider()
+
+            # Display recommended treatment
+            st.subheader("💡 Recommended Treatment / Action")
+            solution = get_solution(predicted_class)
+            st.info(solution)
+
+if __name__ == "__main__":
+    main()
