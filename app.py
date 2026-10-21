@@ -168,6 +168,12 @@ def load_agtech_model():
 model = load_agtech_model()
 cam_engine = GradCAM(model, model.layer4[-1])
 
+@st.cache_resource
+def load_rembg_session():
+    return new_session("u2netp")
+
+my_session = load_rembg_session()
+
 input_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
