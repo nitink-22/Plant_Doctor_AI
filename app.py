@@ -4,161 +4,90 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models, transforms
 from PIL import Image
+import numpy as np
+import matplotlib.cm as cm
 import streamlit as st
 
 # =============================================================================
-# 1. PAGE CONFIGURATION & GLOBAL SETUP
+# 1. PAGE CONFIGURATION & ENTERPRISE DARK THEME
 # =============================================================================
 st.set_page_config(
-    page_title="Plant Doctor AI - Intelligent Crop Pathology",
-    page_icon="🌿",
+    page_title="Plant Doctor AI - Pathology & XAI Diagnostic Suite",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# =============================================================================
-# 2. CUSTOM CSS (Modern Glassmorphism & Micro-Interactions)
-# =============================================================================
+# Professional CSS (Clean typography, border indicators, zero raw emojis)
 st.markdown("""
 <style>
-    /* Import Modern Font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-
-    /* Main Container Background */
+    
     .stApp {
-        background-color: #0d1117;
+        background-color: #0b0e14;
         color: #e6edf3;
     }
 
-    /* Glassmorphic Card Containers */
-    .custom-card {
-        background: rgba(22, 27, 34, 0.75);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(240, 246, 252, 0.1);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
-    }
-
-    /* Status Badges */
+    /* Enterprise Status Badges */
     .status-badge-healthy {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(35, 134, 54, 0.2);
+        background-color: rgba(35, 134, 54, 0.15);
         border: 1px solid #238636;
         color: #3fb950;
         padding: 8px 16px;
-        border-radius: 30px;
+        border-radius: 6px;
         font-weight: 600;
-        font-size: 1.1rem;
+        font-size: 1rem;
+        display: inline-block;
+        letter-spacing: 0.02em;
     }
 
     .status-badge-diseased {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(218, 54, 51, 0.2);
+        background-color: rgba(218, 54, 51, 0.15);
         border: 1px solid #da3633;
         color: #f85149;
         padding: 8px 16px;
-        border-radius: 30px;
+        border-radius: 6px;
         font-weight: 600;
-        font-size: 1.1rem;
+        font-size: 1rem;
+        display: inline-block;
+        letter-spacing: 0.02em;
     }
 
-    /* Metric Box Highlights */
-    .metric-container {
+    /* Sidebar Analytics Box */
+    .spec-box {
         background: #161b22;
         border: 1px solid #30363d;
-        border-radius: 12px;
-        padding: 16px;
-        text-align: center;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 10px;
     }
-    .metric-label {
-        font-size: 0.82rem;
+    .spec-title {
         color: #8b949e;
+        font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 4px;
     }
-    .metric-value {
-        font-size: 1.6rem;
-        font-weight: 700;
+    .spec-value {
         color: #f0f6fc;
-    }
-
-    /* Header Banner Styling */
-    .app-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 0px 24px 0px;
-        border-bottom: 1px solid #30363d;
-        margin-bottom: 28px;
-    }
-    .header-title {
-        font-size: 2.2rem;
-        font-weight: 700;
-        background: linear-gradient(90deg, #2ea043, #58a6ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
-    }
-    .header-subtitle {
-        color: #8b949e;
         font-size: 0.95rem;
-        margin-top: 4px;
+        font-weight: 600;
+        margin-top: 2px;
     }
 
-    /* System Status Indicator */
-    .system-status {
-        display: inline-flex;
-        align-items: center;
-        background: #161b22;
-        border: 1px solid #30363d;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        color: #3fb950;
-    }
-    .status-dot {
-        height: 8px;
-        width: 8px;
-        background-color: #238636;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 8px;
-        box-shadow: 0 0 8px #238636;
-    }
-
-    /* Top-3 Confidence Bars */
-    .top-pred-item {
-        margin-bottom: 12px;
-    }
-    .top-pred-header {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.9rem;
-        margin-bottom: 4px;
-    }
-
-    /* Streamlit Overrides */
+    /* Clean Tabs Override */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 48px;
-        white-space: pre-wrap;
         background-color: #161b22;
-        border-radius: 8px;
+        border-radius: 6px;
         color: #8b949e;
         border: 1px solid #30363d;
-        padding: 0px 20px;
+        padding: 8px 20px;
+        font-weight: 500;
     }
     .stTabs [aria-selected="true"] {
         background-color: #238636 !important;
@@ -166,14 +95,14 @@ st.markdown("""
         border-color: #2ea043 !important;
     }
 
-    /* Hide Streamlit default chrome */
+    /* Hide Streamlit Default UI Chrome */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
 # =============================================================================
-# 3. CLASS LABELS & PATHOLOGY KNOWLEDGE BASE
+# 2. CLASS MAPPING & PATHOLOGY KNOWLEDGE BASE
 # =============================================================================
 CLASS_NAMES = [
     "Apple: Scab", "Apple: Black Rot", "Apple: Cedar Rust", "Apple: Healthy",
@@ -192,122 +121,96 @@ CLASS_NAMES = [
 ]
 
 DISEASE_KNOWLEDGE_BASE = {
-    "Scab": {
-        "solution": "Apply protective copper-based fungicides or Captan/Mancozeb. Remove and burn fallen infected leaves.",
-        "severity": "Moderate",
-        "action": "Fungicide Spray & Sanitation"
-    },
-    "Black Rot": {
-        "solution": "Prune out dead or diseased wood during winter dormancy. Apply copper fungicides prior to leaf bloom.",
-        "severity": "High",
-        "action": "Immediate Pruning Required"
-    },
-    "Cedar Rust": {
-        "solution": "Remove nearby cedar tree galls if possible. Apply protective Myclobutanil fungicides early in spring.",
-        "severity": "Moderate",
-        "action": "Protective Spraying"
-    },
-    "Powdery Mildew": {
-        "solution": "Apply organic neem oil or sulfur sprays. Increase sunlight and pruning to improve canopy airflow.",
-        "severity": "Low to Moderate",
-        "action": "Airflow & Organic Spray"
-    },
-    "Gray Leaf Spot": {
-        "solution": "Practice annual crop rotation with non-host plants. Apply triazole or strobilurin fungicides if severe.",
-        "severity": "High",
-        "action": "Crop Rotation & Fungicide"
-    },
-    "Common Rust": {
-        "solution": "Deploy rust-resistant hybrids. Apply foliar fungicides early if infection starts early in the growing season.",
-        "severity": "Moderate",
-        "action": "Foliar Fungicide Application"
-    },
-    "Northern Leaf Blight": {
-        "solution": "Rotate field crops, deeply plow post-harvest debris, and use approved resistant hybrids.",
-        "severity": "High",
-        "action": "Debris Removal & Resistance"
-    },
-    "Esca (Black Measles)": {
-        "solution": "Prune infected branches down to healthy tissue. Coat large pruning wounds with protective paint/sealant.",
-        "severity": "High",
-        "action": "Surgical Pruning"
-    },
-    "Leaf Blight": {
-        "solution": "Apply copper-based protective fungicides early and manage crop density to reduce ambient humidity.",
-        "severity": "Moderate",
-        "action": "Humidity Reduction & Spray"
-    },
-    "Citrus Greening": {
-        "solution": "Control psyllid insect vectors using systemic insecticides. Immediately rogue infected trees to prevent orchard loss.",
-        "severity": "Critical",
-        "action": "Vector Control & Eradication"
-    },
-    "Bacterial Spot": {
-        "solution": "Use certified disease-free seeds and copper-mancozeb tank mixes. Strictly avoid overhead irrigation.",
-        "severity": "High",
-        "action": "Drip Irrigation & Bactericide"
-    },
-    "Early Blight": "Spray copper or chlorothalonil fungicides. Mulch around plant base to prevent soil splash.",
-    "Early Blight": {
-        "solution": "Apply chlorothalonil or copper fungicides. Mulch ground around plant base to prevent splash spread.",
-        "severity": "Moderate",
-        "action": "Base Mulching & Fungicide"
-    },
-    "Late Blight": {
-        "solution": "Apply protective systemic fungicides (Mancozeb/Chlorothalonil) immediately. Destroy infected plants to prevent airborne spread.",
-        "severity": "Critical",
-        "action": "Emergency Quarantine / Spray"
-    },
-    "Leaf Mold": {
-        "solution": "Increase greenhouse ventilation and keep humidity below 85%. Apply copper fungicides at first notice.",
-        "severity": "Moderate",
-        "action": "Ventilation Control"
-    },
-    "Septoria Leaf Spot": {
-        "solution": "Remove infected lower leaves immediately. Apply fungicides and practice strict 3-year crop rotation.",
-        "severity": "Moderate",
-        "action": "Lower Leaf Pruning"
-    },
-    "Spider Mites": {
-        "solution": "Apply high-pressure water jets, insecticidal soap, or horticultural neem oil. Maintain proper plant hydration.",
-        "severity": "Low",
-        "action": "Mite Soap / Hydration"
-    },
-    "Target Spot": {
-        "solution": "Maintain optimal plant spacing, control humidity, and apply broad-spectrum protective fungicides.",
-        "severity": "Moderate",
-        "action": "Spacing & Protection"
-    },
-    "Yellow Leaf Curl Virus": {
-        "solution": "Control whitefly vectors using insecticidal soaps, yellow sticky traps, and physical protective mesh screens.",
-        "severity": "High",
-        "action": "Insect Vector Elimination"
-    },
-    "Mosaic Virus": {
-        "solution": "No chemical cure available. Rogue and incinerate infected plants immediately. Disinfect all tools and hands.",
-        "severity": "Critical",
-        "action": "Immediate Plant Removal"
-    },
-    "Leaf Scorch": {
-        "solution": "Avoid overhead leaf watering, trim dead foliage in late summer, and ensure well-draining soil conditions.",
-        "severity": "Low to Moderate",
-        "action": "Drip Irrigation Adjustment"
-    },
-    "Healthy": {
-        "solution": "No pathological symptoms identified. Continue balanced irrigation, routine fertilization, and monitoring.",
-        "severity": "None (Healthy)",
-        "action": "Standard Maintenance"
-    }
+    "Scab": {"solution": "Apply protective copper-based fungicides or Captan/Mancozeb. Remove and destroy fallen infected leaf debris.", "severity": "Moderate"},
+    "Black Rot": {"solution": "Prune away dead or cankered wood during dormancy. Apply copper fungicides before spring bud bloom.", "severity": "High"},
+    "Cedar Rust": {"solution": "Remove nearby galls on cedar trees. Apply protective fungicides like Myclobutanil during early growth phases.", "severity": "Moderate"},
+    "Powdery Mildew": {"solution": "Apply sulfur-based sprays or organic neem oil. Improve sunlight exposure and canopy air ventilation.", "severity": "Low-Moderate"},
+    "Gray Leaf Spot": {"solution": "Practice strategic crop rotation with non-host crops and apply targeted triazole fungicides if severe.", "severity": "High"},
+    "Common Rust": {"solution": "Deploy rust-resistant hybrids and apply recommended foliar fungicides if infection initiates early.", "severity": "Moderate"},
+    "Northern Leaf Blight": {"solution": "Rotate field crops, plow under post-harvest residue, and apply approved preventive fungicides.", "severity": "High"},
+    "Esca (Black Measles)": {"solution": "Prune infected branches well down into healthy wood. Coat pruning cuts with protective wound sealants.", "severity": "High"},
+    "Leaf Blight": {"solution": "Apply copper fungicides early in the season and manage canopy density to reduce ambient humidity.", "severity": "Moderate"},
+    "Citrus Greening": {"solution": "Control psyllid insect vectors using systemic insecticides. Remove severely infected trees immediately.", "severity": "Critical"},
+    "Bacterial Spot": {"solution": "Use certified disease-free seed stock and copper-mancozeb sprays. Avoid overhead spray irrigation.", "severity": "High"},
+    "Early Blight": {"solution": "Spray copper or chlorothalonil fungicides. Mulch around the plant base to prevent soil splash.", "severity": "Moderate"},
+    "Late Blight": {"solution": "Apply protective fungicides (Chlorothalonil/Mancozeb) immediately. Destroy severely blighted plants.", "severity": "Critical"},
+    "Leaf Mold": {"solution": "Increase greenhouse ventilation and lower relative humidity. Apply copper-based fungicides at first sight.", "severity": "Moderate"},
+    "Septoria Leaf Spot": {"solution": "Prune out infected lower leaves. Apply fungicides regularly and enforce strict annual crop rotation.", "severity": "Moderate"},
+    "Spider Mites": {"solution": "Apply high-pressure water jets, insecticidal soap, or horticultural neem oil. Maintain adequate hydration.", "severity": "Low"},
+    "Target Spot": {"solution": "Maintain field hygiene, lower moisture around foliage, and apply broad-spectrum protective fungicides.", "severity": "Moderate"},
+    "Yellow Leaf Curl Virus": {"solution": "Manage whitefly vectors with insecticidal soap, yellow sticky cards, and fine physical mesh netting.", "severity": "High"},
+    "Mosaic Virus": {"solution": "No chemical cure available. Immediately rogue and burn infected plants. Disinfect all tools and hands.", "severity": "Critical"},
+    "Leaf Scorch": {"solution": "Avoid overhead leaf watering, trim diseased foliage in late summer, and ensure well-draining soil.", "severity": "Low-Moderate"},
+    "Healthy": {"solution": "No pathological symptoms detected. Continue routine irrigation, proper fertilization, and monitoring.", "severity": "None"}
 }
 
 # =============================================================================
-# 4. MODEL INFERENCE ENGINE
+# 3. EXPLAINABLE AI (GRAD-CAM ENGINE)
+# =============================================================================
+class GradCAM:
+    """Computes Class Activation Maps for MobileNetV2 without external dependencies."""
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        
+        self.target_layer.register_forward_hook(self._save_activations)
+        self.target_layer.register_full_backward_hook(self._save_gradients)
+
+    def _save_activations(self, module, input, output):
+        self.activations = output
+
+    def _save_gradients(self, module, grad_input, grad_output):
+        self.gradients = grad_output[0]
+
+    def generate_heatmap(self, input_tensor, target_class=None):
+        self.model.zero_grad()
+        output = self.model(input_tensor)
+        
+        if target_class is None:
+            target_class = torch.argmax(output, dim=1).item()
+            
+        score = output[0, target_class]
+        score.backward()
+        
+        gradients = self.gradients.data.cpu().numpy()[0]
+        activations = self.activations.data.cpu().numpy()[0]
+        
+        weights = np.mean(gradients, axis=(1, 2))
+        cam = np.zeros(activations.shape[1:], dtype=np.float32)
+        
+        for i, w in enumerate(weights):
+            cam += w * activations[i]
+            
+        cam = np.maximum(cam, 0)
+        if np.max(cam) != 0:
+            cam = cam / np.max(cam)
+            
+        return cam, target_class
+
+def generate_overlay(original_pil: Image.Image, cam: np.ndarray, alpha: float = 0.45) -> Image.Image:
+    """Generates Jet colormap heatmap overlay scaled to target image."""
+    img_resized = original_pil.resize((224, 224)).convert("RGB")
+    cam_resized = Image.fromarray(np.uint8(255 * cam)).resize((224, 224), Image.BILINEAR)
+    
+    cam_np = np.array(cam_resized) / 255.0
+    colormap = cm.get_cmap("jet")
+    heatmap_rgb = colormap(cam_np)[:, :, :3]
+    
+    orig_np = np.array(img_resized) / 255.0
+    overlay = (1 - alpha) * orig_np + alpha * heatmap_rgb
+    overlay = np.clip(overlay * 255, 0, 255).astype(np.uint8)
+    
+    return Image.fromarray(overlay)
+
+# =============================================================================
+# 4. MODEL ENGINE & PREPROCESSING
 # =============================================================================
 MODEL_PATH = "mobilenet_v2_baseline.pth"
 
 @st.cache_resource
-def load_trained_model():
-    """Loads and caches the PyTorch MobileNetV2 architecture with evaluation weights."""
+def load_model():
     model = models.mobilenet_v2(weights=None)
     model.classifier[1] = nn.Linear(model.last_channel, len(CLASS_NAMES))
     
@@ -316,36 +219,31 @@ def load_trained_model():
             state_dict = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
             model.load_state_dict(state_dict)
         except Exception as e:
-            st.error(f"Error loading model state dict: {e}")
+            st.error(f"Error loading model weights: {e}")
     else:
-        st.warning(f"⚠️ Weights file '{MODEL_PATH}' not found in root directory. Running in architecture-only mode.")
-    
-    model.eval()  # Disables Dropout & locks BatchNorm statistics
+        st.warning(f"Model file '{MODEL_PATH}' was not found in directory.")
+        
+    model.eval()
     return model
 
-def build_transform_pipeline():
-    """Standard PyTorch evaluation pipeline matching ImageNet normalization."""
-    return transforms.Compose([
+def transform_image(image: Image.Image) -> torch.Tensor:
+    transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]
-        )
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
-
-def run_inference(model: nn.Module, image: Image.Image):
-    """Performs model forward pass and computes top-3 prediction probabilities."""
     if image.mode != "RGB":
         image = image.convert("RGB")
-        
-    transform = build_transform_pipeline()
-    tensor = transform(image).unsqueeze(0)  # Shape: (1, 3, 224, 224)
+    return transform(image).unsqueeze(0)
+
+def predict_and_explain(model, image: Image.Image):
+    tensor = transform_image(image)
     
+    # 1. Forward Pass
     with torch.no_grad():
-        logits = model(tensor)
-        probabilities = F.softmax(logits, dim=1)
-        top_probs, top_indices = torch.topk(probabilities, k=3, dim=1)
+        outputs = model(tensor)
+        probs = F.softmax(outputs, dim=1)
+        top_probs, top_indices = torch.topk(probs, k=3, dim=1)
         
     top_predictions = []
     for i in range(3):
@@ -353,197 +251,134 @@ def run_inference(model: nn.Module, image: Image.Image):
         prob = top_probs[0][i].item() * 100
         top_predictions.append((CLASS_NAMES[idx], prob))
         
-    return top_predictions
+    # 2. Grad-CAM Hook Extraction
+    target_layer = model.features[-1]
+    grad_cam = GradCAM(model, target_layer)
+    cam_heatmap, _ = grad_cam.generate_heatmap(tensor)
+    xai_image = generate_overlay(image, cam_heatmap)
+    
+    return top_predictions, xai_image
 
-def lookup_knowledge(class_name: str):
-    """Retrieves pathology details from knowledge base matching disease substring."""
+def get_disease_metadata(class_name: str):
     for key, data in DISEASE_KNOWLEDGE_BASE.items():
         if key.lower() in class_name.lower():
             return data
-    return {
-        "solution": "Consult local agricultural extension officers for localized treatment options.",
-        "severity": "Unknown",
-        "action": "Expert Consultation Required"
-    }
+    return {"solution": "Consult local agricultural extension specialists.", "severity": "Unknown"}
 
 # =============================================================================
-# 5. SIDEBAR LAYOUT
-# =============================================================================
-def render_sidebar():
-    with st.sidebar:
-        st.markdown("<h2 style='margin-bottom:0;'>🌿 Plant Doctor AI</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#8b949e; font-size:0.85rem;'>AI-Powered Edge Pathology Suite</p>", unsafe_allow_html=True)
-        st.divider()
-
-        st.markdown("#### ⚙️ Architecture Metrics")
-        st.markdown("""
-            <div style="background:#161b22; padding:12px; border-radius:8px; border:1px solid #30363d; margin-bottom:10px;">
-                <span style="color:#8b949e; font-size:0.8rem;">BACKBONE</span><br/>
-                <strong style="color:#f0f6fc;">MobileNetV2 (3.5M Params)</strong>
-            </div>
-            <div style="background:#161b22; padding:12px; border-radius:8px; border:1px solid #30363d; margin-bottom:10px;">
-                <span style="color:#8b949e; font-size:0.8rem;">TARGET CLASSES</span><br/>
-                <strong style="color:#f0f6fc;">38 Crop Pathology Classes</strong>
-            </div>
-            <div style="background:#161b22; padding:12px; border-radius:8px; border:1px solid #30363d;">
-                <span style="color:#8b949e; font-size:0.8rem;">INFERENCE DEVICE</span><br/>
-                <strong style="color:#f0f6fc;">PyTorch CPU Engine</strong>
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.divider()
-        st.markdown("#### 📋 Operational Checklist")
-        st.caption("✔️ Center single plant leaf in frame.")
-        st.caption("✔️ Ensure bright, non-glare lighting.")
-        st.caption("✔️ Keep background uniform if possible.")
-
-# =============================================================================
-# 6. MAIN APP INTERFACE
+# 5. ENTERPRISE APPLICATION INTERFACE
 # =============================================================================
 def main():
-    render_sidebar()
-
-    # Top Header Bar
-    st.markdown("""
-        <div class="app-header">
-            <div>
-                <h1 class="header-title">Plant Doctor AI</h1>
-                <p class="header-subtitle">Real-time agricultural computer vision for instant leaf disease diagnosis</p>
+    # Sidebar Metadata
+    with st.sidebar:
+        st.markdown("<h3 style='margin-bottom:2px;'>PLANT DOCTOR AI</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#8b949e; font-size:0.8rem; margin-top:0;'>Diagnostic & Explainability Engine</p>", unsafe_allow_html=True)
+        st.divider()
+        
+        st.markdown("<p style='font-weight:600; font-size:0.85rem; color:#8b949e;'>SYSTEM SPECIFICATIONS</p>", unsafe_allow_html=True)
+        st.markdown("""
+            <div class="spec-box">
+                <div class="spec-title">Architecture</div>
+                <div class="spec-value">MobileNetV2 (3.5M Params)</div>
             </div>
-            <div class="system-status">
-                <span class="status-dot"></span> System Ready
+            <div class="spec-box">
+                <div class="spec-title">Explainability Engine</div>
+                <div class="spec-value">Grad-CAM (Class Activation)</div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+            <div class="spec-box">
+                <div class="spec-title">Target Classification</div>
+                <div class="spec-value">38 Pathology Categories</div>
+            </div>
+            <div class="spec-box">
+                <div class="spec-title">Inference Execution</div>
+                <div class="spec-value">PyTorch / CPU Engine</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.divider()
+        st.markdown("<p style='font-weight:600; font-size:0.85rem; color:#8b949e;'>EXPLAINABLE AI METHODOLOGY</p>", unsafe_allow_html=True)
+        st.caption("The Grad-CAM module isolates feature activation gradients in the final convolutional layer, producing a spatial visual heatmap highlighting key lesion criteria used by the neural network.")
 
-    # Load Model Resource
-    model = load_trained_model()
+    # Main Header Block
+    st.markdown("<h2 style='margin-bottom:4px;'>Plant Doctor AI</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#8b949e; margin-top:0;'>Automated Crop Pathology Diagnosis with Visual Attention Heatmaps</p>", unsafe_allow_html=True)
+    st.write("")
 
-    # File Input Mode Selection
-    input_tab1, input_tab2 = st.tabs(["📁 Upload Image File", "📸 Take Live Camera Snapshot"])
+    model = load_model()
+
+    # Input Mode Tabs
+    tab_upload, tab_camera = st.tabs(["Upload Image File", "Capture Snapshot"])
     
-    selected_image = None
-
-    with input_tab1:
-        uploaded_file = st.file_uploader(
-            "Select crop leaf image file", 
-            type=["jpg", "jpeg", "png"], 
-            label_visibility="collapsed"
-        )
-        if uploaded_file is not None:
-            selected_image = Image.open(uploaded_file)
-
-    with input_tab2:
-        camera_snapshot = st.camera_input(
-            "Capture leaf photo directly", 
-            label_visibility="collapsed"
-        )
-        if camera_snapshot is not None:
-            selected_image = Image.open(camera_snapshot)
+    input_image = None
+    with tab_upload:
+        file = st.file_uploader("Select leaf image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+        if file:
+            input_image = Image.open(file)
+            
+    with tab_camera:
+        cam_file = st.camera_input("Take photo", label_visibility="collapsed")
+        if cam_file:
+            input_image = Image.open(cam_file)
 
     st.write("")
 
-    # Main Analysis Dashboard
-    if selected_image is not None:
-        # Layout Split: 45% Image Frame, 55% Analysis Dashboard
-        col_img, col_results = st.columns([0.85, 1.15], gap="large")
+    # Main Analysis View
+    if input_image:
+        col_left, col_right = st.columns([1, 1], gap="large")
 
-        with col_img:
-            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.markdown("<h4 style='margin-top:0;'>📷 Target Image</h4>", unsafe_allow_html=True)
-            
-            # Display image with clean rounded framing
-            st.image(selected_image, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+        with st.spinner("Processing neural inference & computing Grad-CAM heatmap..."):
+            predictions, xai_image = predict_and_explain(model, input_image)
 
-        with col_results:
-            st.markdown('<div class="custom-card">', unsafe_allow_html=True)
-            st.markdown("<h4 style='margin-top:0;'>📊 Diagnostic Breakdown</h4>", unsafe_allow_html=True)
+        top_class, top_conf = predictions[0]
+        metadata = get_disease_metadata(top_class)
+        is_healthy = "healthy" in top_class.lower()
 
-            with st.spinner("Executing neural model evaluation..."):
-                predictions = run_inference(model, selected_image)
+        # LEFT COLUMN: Visual Inspection
+        with col_left:
+            with st.container(border=True):
+                st.markdown("<h4 style='margin-top:0;'>Visual & Attention Analysis</h4>", unsafe_allow_html=True)
+                img_tab1, img_tab2 = st.tabs(["Grad-CAM Heatmap", "Original Image"])
+                
+                with img_tab1:
+                    st.image(xai_image, caption="Red and yellow regions correspond to high visual feature attention during model forward pass.", use_container_width=True)
+                with img_tab2:
+                    st.image(input_image, caption="Uploaded Leaf Input", use_container_width=True)
 
-            top_class, top_conf = predictions[0]
-            is_healthy = "healthy" in top_class.lower()
-            knowledge = lookup_knowledge(top_class)
+        # RIGHT COLUMN: Diagnostic Metrics & Treatment Plan
+        with col_right:
+            with st.container(border=True):
+                st.markdown("<h4 style='margin-top:0;'>Diagnostic Assessment</h4>", unsafe_allow_html=True)
 
-            # Primary Status Badge
-            if is_healthy:
-                st.markdown(f'<div class="status-badge-healthy">✅ {top_class}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="status-badge-diseased">⚠️ {top_class}</div>', unsafe_allow_html=True)
+                # Status Badge
+                if is_healthy:
+                    st.markdown(f'<div class="status-badge-healthy">DIAGNOSIS: {top_class.upper()}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div class="status-badge-diseased">DIAGNOSIS: {top_class.upper()}</div>', unsafe_allow_html=True)
 
-            st.write("")
-            st.write("")
+                st.write("")
 
-            # Metric Bar Highlights
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.markdown(f"""
-                    <div class="metric-container">
-                        <div class="metric-label">Model Confidence</div>
-                        <div class="metric-value">{top_conf:.1f}%</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with m2:
-                st.markdown(f"""
-                    <div class="metric-container">
-                        <div class="metric-label">Risk Severity</div>
-                        <div class="metric-value" style="font-size:1.2rem; margin-top:5px;">{knowledge['severity']}</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with m3:
-                reliability = "High" if top_conf > 75 else "Moderate" if top_conf > 45 else "Low"
-                st.markdown(f"""
-                    <div class="metric-container">
-                        <div class="metric-label">Reliability</div>
-                        <div class="metric-value" style="font-size:1.2rem; margin-top:5px;">{reliability}</div>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Metrics Row
+                m1, m2 = st.columns(2)
+                m1.metric("Model Confidence", f"{top_conf:.1f}%")
+                m2.metric("Disease Severity", metadata["severity"])
 
-            st.divider()
+                st.divider()
 
-            # Top-3 Model Probability Breakdown
-            st.markdown("##### 📈 Top Probability Distribution")
-            for cls_name, prob in predictions:
-                st.markdown(f"""
-                    <div class="top-pred-item">
-                        <div class="top-pred-header">
-                            <span style="color:#e6edf3;">{cls_name}</span>
-                            <span style="color:#8b949e; font-weight:600;">{prob:.1f}%</span>
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                st.progress(min(int(prob), 100))
+                # Top Probability Distribution
+                st.markdown("<p style='font-weight:600; font-size:0.9rem; color:#8b949e; margin-bottom:8px;'>PROBABILITY DISTRIBUTION</p>", unsafe_allow_html=True)
+                for cls_name, prob in predictions:
+                    st.text(f"{cls_name} — {prob:.1f}%")
+                    st.progress(min(int(prob), 100))
 
-            st.divider()
+                st.divider()
 
-            # Actionable Solution Card
-            st.markdown("##### 💡 Recommended Clinical Action")
-            st.markdown(f"""
-                <div style="background: rgba(40, 50, 70, 0.4); border-left: 4px solid #58a6ff; padding: 16px; border-radius: 8px;">
-                    <p style="margin:0 0 6px 0; color:#58a6ff; font-weight:600; font-size:0.9rem;">
-                        PRIMARY ACTION: {knowledge['action']}
-                    </p>
-                    <p style="margin:0; color:#c9d1d9; font-size:0.92rem; line-height:1.5;">
-                        {knowledge['solution']}
-                    </p>
-                </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+                # Recommended Treatment Protocol
+                st.markdown("<p style='font-weight:600; font-size:0.9rem; color:#8b949e; margin-bottom:8px;'>RECOMMENDED TREATMENT PROTOCOL</p>", unsafe_allow_html=True)
+                st.info(metadata["solution"])
 
     else:
-        # Placeholder view when no image is uploaded yet
-        st.markdown("""
-            <div class="custom-card" style="text-align: center; padding: 48px 24px;">
-                <p style="font-size: 3rem; margin-bottom: 8px;">🍃</p>
-                <h3 style="margin-top: 0; color: #f0f6fc;">Awaiting Input Image</h3>
-                <p style="color: #8b949e; max-width: 500px; margin: 0 auto;">
-                    Please upload a plant leaf image or use the live camera tab above to initiate real-time AI diagnosis.
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
+        with st.container(border=True):
+            st.info("Upload an image file or capture a photo using the tabs above to perform pathology analysis and generate visual explainability maps.")
 
 if __name__ == "__main__":
     main()
