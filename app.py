@@ -8,19 +8,16 @@ import numpy as np
 import cv2
 
 # -------------------------------------------------------------------------
-# 1. PAGE CONFIG & CUSTOM CSS 
+# 1. PAGE CONFIG & CUSTOM CSS
 # -------------------------------------------------------------------------
-# Removed the emoji page_icon
 st.set_page_config(page_title="Plant Doctor AI", layout="wide")
 
 st.markdown("""
     <style>
-    /* Make the deep background a solid dark color */
     .stApp {
         background-color: #0E1117;
     }
     
-    /* Box the main content into a sleek, centralized dashboard card */
     .block-container {
         max-width: 1300px !important;
         background-color: #1A1C23;
@@ -31,13 +28,11 @@ st.markdown("""
         margin-bottom: 3vh;
     }
 
-    /* Smooth rounded corners for all images */
     img {
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     
-    /* Style and center the main title */
     .main-title {
         font-size: 3.5rem !important;
         font-weight: 800;
@@ -47,23 +42,17 @@ st.markdown("""
         letter-spacing: 1px;
     }
     
-    /* Style and center the subheader */
     .sub-title {
         font-size: 1.1rem;
         color: #A0A0A0;
         margin-bottom: 40px;
         text-align: center;
     }
-    
-    /* Clean up the sidebar */
-    .css-1d391kg {
-        background-color: #121418;
-    }
     </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
-# 2. EXACT ALPHABETICAL 38 CLASS LABELS & SOLUTIONS
+# 2. CLASS LABELS & SOLUTIONS
 # -------------------------------------------------------------------------
 CLASS_NAMES = [
     "Apple: Scab", "Apple: Black Rot", "Apple: Cedar Rust", "Apple: Healthy",
@@ -108,7 +97,7 @@ DISEASE_SOLUTIONS = {
 }
 
 # -------------------------------------------------------------------------
-# 3. GRAD-CAM ENGINE (AI X-Ray)
+# 3. GRAD-CAM ENGINE
 # -------------------------------------------------------------------------
 class GradCAM:
     def __init__(self, model, target_layer):
@@ -132,6 +121,9 @@ class GradCAM:
         target = output[0, class_idx]
         target.backward()
 
+        if self.gradients is None or self.activations is None:
+            return np.zeros((224, 224), dtype=np.float32)
+
         gradients = self.gradients.cpu().data.numpy()[0]
         activations = self.activations.cpu().data.numpy()[0]
         weights = np.mean(gradients, axis=(1, 2))
@@ -148,36 +140,45 @@ class GradCAM:
         return cam
 
 # -------------------------------------------------------------------------
-# 4. MODEL CONFIGURATION & LOADING (MobileNetV2)
+# 4. MODEL CONFIGURATION & LOADING
 # -------------------------------------------------------------------------
 @st.cache_resource
 def load_agtech_model():
-    # 1. Initialize MobileNetV2 architecture
-    model = models.mobilenet_v2(weights=None) 
-    model.classifier[1] = nn.Linear(model.last_channel, 38)
-    
     try:
+        # Try loading MobileNetV2 baseline
+        model = models.mobilenet_v2(weights=None)
+        model.classifier[1] = nn.Linear(model.last_channel, 38)
         model.load_state_dict(torch.load("mobilenet_v2_baseline.pth", map_location=torch.device('cpu')))
+        model.eval()
+        return model, "mobilenet"
     except FileNotFoundError:
-        st.error("Error: 'mobilenet_v2_baseline.pth' not found. Please upload it to your repo folder.")
-        st.stop()
-        
-    model.eval()
-    return model
+        try:
+            # Fallback to ResNet50 if MobileNetV2 file is missing
+            model = models.resnet50(weights=None)
+            num_features = model.fc.in_features
+            model.fc = nn.Linear(num_features, 38)
+            model.load_state_dict(torch.load("enterprise_plant_model.pth", map_location=torch.device('cpu')))
+            model.eval()
+            return model, "resnet"
+        except FileNotFoundError:
+            st.error("Error: Neither 'mobilenet_v2_baseline.pth' nor 'enterprise_plant_model.pth' was found. Please upload a valid .pth file.")
+            st.stop()
 
-model = load_agtech_model()
+model, arch_type = load_agtech_model()
 
-# 2. TARGET LAYER FIX: MobileNetV2 uses model.features[-1] for Grad-CAM
-cam_engine = GradCAM(model, model.features[-1])
+# Target layer for Grad-CAM depending on architecture
+if arch_type == "mobilenet":
+    cam_engine = GradCAM(model, model.features[-1])
+else:
+    cam_engine = GradCAM(model, model.layer4[-1])
 
-# 3. Cache background removal session
+# Cache lightweight background removal session
 @st.cache_resource
 def load_rembg_session():
     return new_session("u2netp")
 
 my_session = load_rembg_session()
 
-# 4. Transforms remain identical (ImageNet normalization)
 input_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -185,24 +186,20 @@ input_transforms = transforms.Compose([
 ])
 
 # -------------------------------------------------------------------------
-# 5. STREAMLIT INTERFACE UI & SIDEBAR DASHBOARD
+# 5. STREAMLIT INTERFACE UI & SIDEBAR
 # -------------------------------------------------------------------------
 st.markdown('<p class="main-title">Plant Doctor AI</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Production-ready AI system with automated background removal and Grad-CAM visual diagnostics.</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Production-ready AI system with automated background isolation and Grad-CAM diagnostics.</p>', unsafe_allow_html=True)
 st.markdown("---")
 
-st.sidebar.markdown("""
-    <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #4CAF50; margin-bottom: 0px;">Control Panel</h2>
-        <p style="color: #888; font-size: 0.9rem;">Configure diagnostic parameters</p>
-    </div>
-""", unsafe_allow_html=True)
+st.sidebar.markdown("## Control Panel")
+input_mode = st.sidebar.radio("Select image source:", ["Upload Local Image", "Use Live Device Camera"])
 
-st.sidebar.markdown("### Image Source")
-input_mode = st.sidebar.radio("Select how to provide the leaf image:", ["Upload Local Image", "Use Live Device Camera"], label_visibility="collapsed")
-
-st.sidebar.markdown("### Processing Options")
-enable_bg_removal = st.sidebar.checkbox("Auto-Isolate Leaf", value=True, help="Automatically removes the background to help the AI focus solely on the leaf structure.")
+enable_bg_removal = st.sidebar.checkbox(
+    "Auto-Isolate Leaf", 
+    value=False, 
+    help="Automatically isolates the leaf. Leave unchecked if background removal erases green foliage."
+)
 
 st.sidebar.markdown("---")
 
@@ -213,44 +210,14 @@ else:
     image_file = st.sidebar.camera_input("Position leaf clearly in front of device camera")
 
 st.sidebar.markdown("---")
-
-st.sidebar.success("""
-**[ONLINE] System Status** **Engine:** ResNet-50 Vision  
-**Processing:** Local Inference  
-**Classes:** 38 Pathogen Profiles
-""")
-
-with st.sidebar.expander("View Supported Crops (14)"):
-    st.markdown("""
-    * Apple
-    * Blueberry
-    * Cherry
-    * Corn
-    * Grape
-    * Orange
-    * Peach
-    * Pepper (Bell)
-    * Potato
-    * Raspberry
-    * Soybean
-    * Squash
-    * Strawberry
-    * Tomato
-    """)
-
-st.sidebar.markdown("""
-    <div style="text-align: center; margin-top: 40px; color: #666; font-size: 0.8rem;">
-        Plant Doctor AI v1.0.0<br>
-        <i>Powered by Deep Learning</i>
-    </div>
-""", unsafe_allow_html=True)
+st.sidebar.success(f"**Status:** Online\n\n**Engine:** {arch_type.upper()}\n\n**Classes:** 38 Pathogen Profiles")
 
 # -------------------------------------------------------------------------
 # 6. PROCESSING & PREDICTION PIPELINE
 # -------------------------------------------------------------------------
 if image_file is not None:
     raw_image = Image.open(image_file).convert("RGB")
-    raw_image.thumbnail((800, 800))
+    raw_image.thumbnail((800, 800))  # Downscale to protect memory
     
     col1, col2, col3 = st.columns(3)
     
@@ -260,11 +227,17 @@ if image_file is not None:
         
     if enable_bg_removal:
         with st.spinner("Isolating leaf..."):
-            # NEW CODE (Preserves leaf structure):
             bg_removed = remove(raw_image, session=my_session)
+            alpha = bg_removed.split()[3]
+            alpha_np = np.array(alpha)
             
-            processed_image = Image.new("RGB", bg_removed.size, (255, 255, 255))
-            processed_image.paste(bg_removed, mask=bg_removed.split()[3])
+            # Fallback if background removal erases the leaf (less than 15% subject detected)
+            if np.mean(alpha_np > 30) < 0.15:
+                st.warning("⚠️ Background removal erased leaf structure. Reverting to original image.")
+                processed_image = raw_image
+            else:
+                processed_image = Image.new("RGB", bg_removed.size, (255, 255, 255))
+                processed_image.paste(bg_removed, mask=alpha)
             
         with col2:
             st.markdown("**2. Isolated Matrix**")
@@ -277,11 +250,16 @@ if image_file is not None:
     with st.spinner("Analyzing botanical structures..."):
         tensor_img = input_transforms(processed_image).unsqueeze(0)
         
-        outputs = model(tensor_img)
-        probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
-        confidence, class_idx = torch.max(probabilities, 0)
+        # 1. Inference without gradient tracking (Saves RAM)
+        with torch.no_grad():
+            outputs = model(tensor_img)
+            probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+            confidence, class_idx = torch.max(probabilities, 0)
         
-        heatmap = cam_engine.generate_heatmap(tensor_img, class_idx.item())
+        # 2. Grad-CAM generation with gradient tracking enabled
+        with torch.enable_grad():
+            tensor_img_grad = tensor_img.clone().detach().requires_grad_(True)
+            heatmap = cam_engine.generate_heatmap(tensor_img_grad, class_idx.item())
         
         orig_width, orig_height = processed_image.size
         heatmap_resized = cv2.resize(heatmap, (orig_width, orig_height))
@@ -293,10 +271,10 @@ if image_file is not None:
         
         with col3:
             st.markdown("**3. AI Focus (Grad-CAM)**")
-            st.image(overlay, use_container_width=True)
-                        
+            st.image(overlay, width="stretch")
+            
     # -------------------------------------------------------------------------
-    # 7. DIAGNOSTIC RESULTS DISPLAY 
+    # 7. DIAGNOSTIC RESULTS DISPLAY
     # -------------------------------------------------------------------------
     st.markdown("---")
     
