@@ -246,16 +246,16 @@ st.sidebar.markdown("""
 # -------------------------------------------------------------------------
 if image_file is not None:
     raw_image = Image.open(image_file).convert("RGB")
+    raw_image.thumbnail((800, 800))
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("**1. Original Capture**")
-        st.image(raw_image, use_container_width=True)
+        st.image(raw_image, width="stretch")
         
     if enable_bg_removal:
         with st.spinner("Isolating leaf..."):
-            my_session = new_session("u2netp")
             # NEW CODE (Preserves leaf structure):
             bg_removed = remove(raw_image, session=my_session)
             
