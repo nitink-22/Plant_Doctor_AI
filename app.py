@@ -9,192 +9,131 @@ import matplotlib.cm as cm
 import streamlit as st
 
 # =============================================================================
-# 1. PAGE CONFIGURATION & MODERN SAAS CSS STYLING
+# 1. PAGE CONFIGURATION & REFINED MINIMALIST CSS
 # =============================================================================
 st.set_page_config(
-    page_title="Crop Disease Detection | Professional AI Platform",
-    page_icon="🌿",
+    page_title="Plant Doctor AI | Diagnostic Engine",
+    page_icon="🌱",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS directly inspired by modern SaaS landing page UI
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
     .stApp {
-        background: linear-gradient(135deg, #0b1320 0%, #111c2e 50%, #0a111d 100%);
-        color: #f8fafc;
+        background-color: #0b0f19;
+        color: #f1f5f9;
     }
 
-    /* Top Navigation Header Bar */
+    /* Top Navigation */
     .nav-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 28px;
-        background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 100px;
-        margin-bottom: 32px;
+        padding: 16px 32px;
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 40px;
     }
     .nav-brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 800;
-        font-size: 1.25rem;
-        color: #ffffff;
-        letter-spacing: -0.02em;
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #f8fafc;
+        letter-spacing: -0.01em;
     }
-    .nav-brand-icon {
-        background: #10b981;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
-    .nav-links {
-        display: flex;
-        gap: 28px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #94a3b8;
-    }
-    .nav-btn {
-        background: #10b981;
-        color: #ffffff;
-        padding: 8px 18px;
-        border-radius: 100px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        text-decoration: none;
+    .nav-brand span {
+        color: #10b981;
     }
 
-    /* Hero Left Column Copy */
-    .social-proof {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        padding: 6px 16px;
-        border-radius: 100px;
-        font-size: 0.85rem;
-        color: #cbd5e1;
-        margin-bottom: 20px;
-    }
+    /* Hero Typography */
     .hero-title {
-        font-size: 3.2rem;
-        font-weight: 800;
-        line-height: 1.12;
+        font-size: 3.5rem;
+        font-weight: 700;
+        line-height: 1.1;
         color: #ffffff;
-        letter-spacing: -0.03em;
-        margin-bottom: 18px;
+        letter-spacing: -0.02em;
+        margin-bottom: 20px;
     }
     .hero-title span {
         color: #10b981;
     }
     .hero-sub {
-        font-size: 1.05rem;
+        font-size: 1.1rem;
         color: #94a3b8;
         line-height: 1.6;
-        margin-bottom: 28px;
-        max-width: 520px;
+        margin-bottom: 32px;
+        max-width: 500px;
     }
 
-    /* Feature Pills */
-    .pill-container {
+    /* Feature Badges */
+    .feature-row {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
-        margin-top: 10px;
     }
-    .pill-chip {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 8px 16px;
-        border-radius: 100px;
-        font-size: 0.82rem;
-        color: #e2e8f0;
+    .feature-badge {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #cbd5e1;
         font-weight: 500;
     }
 
-    /* Floating Scanner Card Widget */
-    .scanner-card-header {
-        text-align: center;
-        padding-bottom: 12px;
-    }
-    .scanner-card-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 0;
-    }
-    .scanner-card-sub {
-        font-size: 0.85rem;
-        color: #64748b;
-        margin-top: 2px;
-    }
-
-    /* Results Alert Box Inside Card */
-    .alert-box-diseased {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: 12px;
-        padding: 14px 18px;
-        color: #991b1b;
-        margin-top: 16px;
-    }
-    .alert-box-healthy {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 12px;
-        padding: 14px 18px;
-        color: #166534;
-        margin-top: 16px;
-    }
-    .alert-title {
-        font-weight: 700;
-        font-size: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .alert-meta {
-        font-size: 0.82rem;
-        opacity: 0.85;
-        margin-top: 2px;
-    }
-
-    /* Streamlit Tab Override for White Scanner Card */
+    /* CLEAN TABS - Replacing the solid green block */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 24px;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: rgba(255, 255, 255, 0.06);
-        border-radius: 8px;
-        color: #94a3b8;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 8px 16px;
-        font-size: 0.85rem;
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        color: #64748b !important;
+        padding: 10px 4px !important;
+        font-weight: 500;
+        font-size: 0.95rem;
+        border-radius: 0 !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #10b981 !important;
-        color: #ffffff !important;
-        border-color: #10b981 !important;
+        color: #10b981 !important;
+        border-bottom: 2px solid #10b981 !important;
     }
 
-    /* Hide Default Chrome */
+    /* Diagnostic Result Cards */
+    .result-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    .result-healthy {
+        border-left: 4px solid #10b981;
+    }
+    .result-diseased {
+        border-left: 4px solid #ef4444;
+    }
+    .result-header {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+        margin-bottom: 4px;
+    }
+    .result-value {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #f8fafc;
+    }
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
@@ -247,7 +186,6 @@ DISEASE_KNOWLEDGE_BASE = {
 # 3. GRAD-CAM EXPLAINABLE AI ENGINE
 # =============================================================================
 class GradCAM:
-    """Computes Class Activation Maps for MobileNetV2 without external heavy dependencies."""
     def __init__(self, model, target_layer):
         self.model = model
         self.target_layer = target_layer
@@ -289,7 +227,6 @@ class GradCAM:
         return cam, target_class
 
 def generate_overlay(original_pil: Image.Image, cam: np.ndarray, alpha: float = 0.45) -> Image.Image:
-    """Generates Jet colormap heatmap overlay scaled to target image."""
     img_resized = original_pil.resize((224, 224)).convert("RGB")
     cam_resized = Image.fromarray(np.uint8(255 * cam)).resize((224, 224), Image.BILINEAR)
     
@@ -338,7 +275,6 @@ def transform_image(image: Image.Image) -> torch.Tensor:
 def predict_and_explain(model, image: Image.Image):
     tensor = transform_image(image)
     
-    # Forward Pass
     with torch.no_grad():
         outputs = model(tensor)
         probs = F.softmax(outputs, dim=1)
@@ -350,7 +286,6 @@ def predict_and_explain(model, image: Image.Image):
         prob = top_probs[0][i].item() * 100
         top_predictions.append((CLASS_NAMES[idx], prob))
         
-    # Grad-CAM Hook Execution
     target_layer = model.features[-1]
     grad_cam = GradCAM(model, target_layer)
     cam_heatmap, _ = grad_cam.generate_heatmap(tensor)
@@ -368,125 +303,98 @@ def get_disease_metadata(class_name: str):
 # 5. MAIN DASHBOARD INTERFACE
 # =============================================================================
 def main():
-    # Top Navigation Bar
+    # Subtle Top Navigation
     st.markdown("""
         <div class="nav-bar">
-            <div class="nav-brand">
-                <div class="nav-brand-icon">🌿</div>
-                Crop Disease Detection
-            </div>
-            <div class="nav-links">
-                <span>Disease ID</span>
-                <span>Crop Pathology</span>
-                <span>Disease Diagnosis</span>
-                <span>Pest Scanner</span>
-            </div>
-            <a href="#scan-section" class="nav-btn">Detect Disease Now</a>
+            <div class="nav-brand">Plant Doctor <span>AI</span></div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Hero Section Split (Left Copy / Right Card)
-    col_hero_left, col_hero_right = st.columns([1.1, 0.9], gap="large")
-
+    col_hero, col_scanner = st.columns([1.1, 0.9], gap="large")
     model = load_model()
 
-    with col_hero_left:
+    with col_hero:
         st.markdown("""
-            <div class="social-proof">
-                <span>👨‍🌾</span> Trusted by 10,000+ agricultural practitioners worldwide
-            </div>
             <h1 class="hero-title">
-                Professional Crop<br/>Disease Detection<br/>with <span>98% Accuracy</span>
+                Intelligent Crop<br/>Pathology Engine
             </h1>
             <p class="hero-sub">
-                Specialized AI platform for identifying plant diseases and pathogens. 
-                Get instant diagnosis, Explainable AI (Grad-CAM) visual attention maps, 
-                and actionable treatment protocols.
+                Professional diagnostic platform for identifying plant pathogens. 
+                Upload a sample to receive instant neural analysis backed by visual 
+                attention maps and actionable treatment protocols.
             </p>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-            <div class="pill-container">
-                <div class="pill-chip">✓ 98% Model Accuracy</div>
-                <div class="pill-chip">⚡ Instant Neural Results</div>
-                <div class="pill-chip">🔥 Grad-CAM XAI Supported</div>
-                <div class="pill-chip">🛡️ 38 Crop Pathologies</div>
+            <div class="feature-row">
+                <div class="feature-badge">MobileNetV2 Architecture</div>
+                <div class="feature-badge">Grad-CAM Explainability</div>
+                <div class="feature-badge">38 Target Classes</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # Right Column: The Interactive Scanner Card Widget
     input_image = None
 
-    with col_hero_right:
+    with col_scanner:
         with st.container(border=True):
-            st.markdown("""
-                <div class="scanner-card-header">
-                    <h3 class="scanner-card-title">Scan Your Crops</h3>
-                    <p class="scanner-card-sub">Point your camera at leaves or upload an image file</p>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<h4 style='margin-top:0; color:#f8fafc;'>Diagnostic Scanner</h4>", unsafe_allow_html=True)
 
-            tab_file, tab_cam = st.tabs(["📁 Upload Image File", "📸 Live Camera"])
+            # Clean tabs with no emojis and modern underline styling
+            tab_file, tab_cam = st.tabs(["Upload File", "Live Camera"])
             
             with tab_file:
-                uploaded_file = st.file_uploader("Select crop leaf image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+                uploaded_file = st.file_uploader("Select image file", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
                 if uploaded_file:
                     input_image = Image.open(uploaded_file)
 
             with tab_cam:
-                cam_shot = st.camera_input("Capture leaf snapshot", label_visibility="collapsed")
+                cam_shot = st.camera_input("Capture live snapshot", label_visibility="collapsed")
                 if cam_shot:
                     input_image = Image.open(cam_shot)
 
             if input_image:
                 st.image(input_image, use_container_width=True)
 
-                with st.spinner("Analyzing crop pathology & generating Grad-CAM heatmap..."):
+                with st.spinner("Processing neural inference..."):
                     predictions, xai_image = predict_and_explain(model, input_image)
 
                 top_class, top_conf = predictions[0]
                 metadata = get_disease_metadata(top_class)
                 is_healthy = "healthy" in top_class.lower()
 
-                # Inline Diagnosis Alert Box Matching Reference Screenshot
-                if is_healthy:
-                    st.markdown(f"""
-                        <div class="alert-box-healthy">
-                            <div class="alert-title">✅ Diagnosis: {top_class}</div>
-                            <div class="alert-meta">Model Confidence: {top_conf:.1f}% • Plant Status: Healthy</div>
+                # Elegant Result Card
+                status_class = "result-healthy" if is_healthy else "result-diseased"
+                st.markdown(f"""
+                    <div class="result-card {status_class}">
+                        <div class="result-header">Primary Diagnosis</div>
+                        <div class="result-value">{top_class}</div>
+                        <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 6px;">
+                            Confidence: {top_conf:.1f}% • Severity: {metadata['severity']}
                         </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                        <div class="alert-box-diseased">
-                            <div class="alert-title">⚠️ Warning: {top_class}</div>
-                            <div class="alert-meta">Model Confidence: {top_conf:.1f}% • Severity Level: {metadata['severity']}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    </div>
+                """, unsafe_allow_html=True)
 
-    # Detailed XAI & Treatment Breakdown Below
+    # Detailed Analysis Section Below
     if input_image and 'predictions' in locals():
-        st.divider()
-        st.markdown("<h3 style='margin-bottom: 20px;'>🔬 Detailed Diagnostic Breakdown & XAI Attention</h3>", unsafe_allow_html=True)
-
+        st.write("")
+        st.write("")
+        st.subheader("Analysis & Protocol")
+        
         col_xai, col_details = st.columns([1, 1], gap="large")
 
         with col_xai:
             with st.container(border=True):
-                st.markdown("#### Explainable AI (Grad-CAM Heatmap)")
-                st.caption("Red and yellow regions indicate key diagnostic lesion patterns identified by the model.")
+                st.markdown("##### Visual Attention (Grad-CAM)")
+                st.caption("Heatmap highlighting the specific leaf regions driving the model's prediction.")
                 st.image(xai_image, use_container_width=True)
 
         with col_details:
             with st.container(border=True):
-                st.markdown("#### Clinical Treatment & Action Plan")
+                st.markdown("##### Treatment Protocol")
                 st.info(metadata["solution"])
-
+                
                 st.divider()
 
-                st.markdown("#### Top Class Probability Distribution")
+                st.markdown("##### Model Confidence Distribution")
                 for cls_name, prob in predictions:
-                    st.text(f"{cls_name} — {prob:.1f}%")
+                    st.caption(f"{cls_name}")
                     st.progress(min(int(prob), 100))
 
 if __name__ == "__main__":
