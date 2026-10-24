@@ -809,7 +809,6 @@ def main():
         st.markdown("---")
         st.markdown("""
             <div style="font-size:0.78rem; color:#94a3b8; line-height: 1.6;">
-                <div>👨‍💻 <b>Developer:</b> Nitin Kumar</div>
                 <div>📁 <a href="https://github.com/nitink-22/Plant_Doctor_AI" target="_blank" style="color:#10b981; font-weight:600; text-decoration:none;">GitHub Repository ↗</a></div>
                 <div>🌐 <a href="https://nitink-22-plant-doctor-ai-app-brvouq.streamlit.app/" target="_blank" style="color:#06b6d4; font-weight:600; text-decoration:none;">Streamlit Cloud App ↗</a></div>
             </div>
@@ -1454,8 +1453,7 @@ Inference Latency: {latency_ms:.2f}ms on {chosen_arch}
                 """)
             with doc3:
                 st.markdown("""
-                **Project & Author Details**
-                - Developer: **Nitin Kumar**
+                **Project & Repository Details**
                 - GitHub Repo: [nitink-22/Plant_Doctor_AI](https://github.com/nitink-22/Plant_Doctor_AI)
                 - Active Cloud App: [Streamlit Cloud](https://nitink-22-plant-doctor-ai-app-brvouq.streamlit.app/)
                 - Full Documentation: Refer to `README.md`
